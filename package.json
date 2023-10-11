@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@spectrum-css/button": "^11.0.12",
+    "@spectrum-css/fieldlabel": "^7.1.1",
+    "@spectrum-css/page": "^6.0.4",
+    "@spectrum-css/tabs": "^4.0.21",
+    "@spectrum-css/textfield": "^6.0.24",
+    "@spectrum-css/tokens": "^11.4.0",
+    "@spectrum-css/typography": "^5.0.44",
+    "@spectrum-css/vars": "^9.0.8"
+  }
+}

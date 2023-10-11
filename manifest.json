@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Demo Creator Tool",
+  "version": "1.0",
+  "description": "Provides a series of utilities for styling a demo.",
+  "minimum_chrome_version": "116",
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel-tab.html"
+  },
+  "permissions": [ 
+    "sidePanel",
+    "contextMenus",
+    "tabs",
+    "activeTab",
+    "storage",
+    "scripting",
+    "windows"
+  ],
+  "icons": {
+    "16": "images/icon-16.png",
+    "48": "images/icon-48.png",
+    "128": "images/icon-128.png"
+  }
+}
