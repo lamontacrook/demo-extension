@@ -6,7 +6,7 @@ const getVariables = () => {
             chrome.scripting.executeScript({
                 target: { tabId: tab[0].id, allFrames: true },
                 func: readVariables,
-                args: [tab[0].id]
+                args: ['--']
             }).then((injectionResults) => {
                 for (const { frameId, result } of injectionResults) {
                     console.log(`Frame ${frameId}`);
@@ -44,6 +44,7 @@ const getImages = () => {
     if (!chrome.tabs) return;
     chrome.tabs.query({ active: true, currentWindow: true }).then((tab) => {
         if (tab) {
+            console.log(readVariables);
             chrome.scripting.executeScript({
                 target: { tabId: tab[0].id, allFrames: true },
                 func: collectImages
@@ -52,9 +53,8 @@ const getImages = () => {
                     result && result.forEach(element => {
                         const div = document.createElement('div');
                         div.classList.add('spectrum-AssetCard-assetContainer');
-
-                        images.innerHTML += `<div style="width: 300px; height: 224px;">
-                        <div class="spectrum-Card spectrum-Card--gallery" tabindex="0" role="figure" style="width: 532px;">
+                        images.innerHTML += `<div style="width: 100%; height: 224px; margin:auto;">
+                        <div class="spectrum-Card spectrum-Card--gallery" tabindex="0" role="figure" style="">
                           <div class="spectrum-Card-preview">
                             <div class="spectrum-Asset">
                               <img class="spectrum-Asset-image"
@@ -66,7 +66,12 @@ const getImages = () => {
                             <div class="spectrum-Card-header">
                               <div class="spectrum-Card-title spectrum-Heading spectrum-Heading--sizeXS">${element?.alt}</div>
                               <div class="spectrum-Card-subtitle spectrum-Detail spectrum-Detail--sizeS">${element?.ext}</div>
-                              <div class="spectrum-Card-description">${element?.pathname}</div>
+                              <div class="spectrum-Card-description">
+                                <a href="#" class="copy-landing">
+                                    <img src="./images/Smock_Copy_18_N.svg" class="copy-btn clickable"/>
+                                    <input class="copy-input" value="${element?.src}" type="hidden" />
+                                </a>
+                              </div>
                               <div class="spectrum-Card-actionButton">
                                 <div style="display: inline-block;">
                                   <button aria-haspopup="true" class="spectrum-ActionButton spectrum-ActionButton--quiet">
@@ -80,7 +85,7 @@ const getImages = () => {
                           </div>
                           <div class="spectrum-QuickActions spectrum-Card-quickActions">
                             <div class="spectrum-Checkbox spectrum-Checkbox--sizeM">
-                              <input type="checkbox" class="spectrum-Checkbox-input" title="Select" value="">
+                              <input type="checkbox" class="spectrum-Checkbox-input" title="Select" value="${element?.src}">
                               <span class="spectrum-Checkbox-box">
                                 <svg class="spectrum-Icon spectrum-UIIcon-Checkmark100 spectrum-Checkbox-checkmark" focusable="false"
                                   aria-hidden="true">
@@ -95,24 +100,35 @@ const getImages = () => {
                           </div>
                         </div>
                       </div>`;
-
-                        // div.querySelector('input').addEventListener('change', ((e) => {
-                        //     chrome.scripting.insertCSS({
-                        //         target: {
-                        //             tabId: tab[0].id,
-                        //         },
-                        //         css: `:root { ${element[0]}: ${e.target.value} !important; }`
-                        //     });
-                        //     console.log(`:root { ${element[0]}: ${e.target.value} !important; }`);
-                        // }));
-                        // images.append(div);
                     });
-
                 }
+
+                document.querySelectorAll('.spectrum-Card--gallery').forEach((item) => {
+                    item.querySelector('.copy-landing').addEventListener('click', ((e) => {
+                        navigator.clipboard.writeText(item.querySelector('.copy-input').value);
+                        e.preventDefault();
+                    }));
+
+
+                    item.querySelector('.spectrum-Checkbox-input').addEventListener('click', ((e) => {
+                        const src = e.target.value;
+                        fetch(src)
+                            .then(function (response) {
+                                return response.blob()
+                            })
+                            .then(function (blob) {
+                                const data = [new ClipboardItem({ [type]: blob })];
+                                navigator.clipboard.write(blob);
+                            });
+                        console.log(e.target.value);
+                        console.log(e.target.parentElement.parentElement.previousSibling);
+                    }))
+                });
             });
         }
     });
-}
+
+};
 
 const toggleSelected = (e) => {
     const tabs = document.querySelector('.spectrum-Tabs');
@@ -132,8 +148,22 @@ const toggleSelected = (e) => {
         if (!item.classList.contains('hidden')) item.classList.toggle('hidden');
     });
 
+    console.log(anchor);
     const ti = anchor.href.split('#')[1];
     document.querySelector(`#${ti}`).classList.toggle('hidden');
+};
+
+const copyPath = (e) => {
+    // document.querySelectorAll('.copy-landing').forEach((landing) => {
+    //     landing.addEventListener('click', ((e) => {
+    //         alert(document.querySelector('.copy-input'));
+    //         console.log(document.querySelector('.copy-input'));
+    //         navigator.clipboard.writeText(document.querySelector('.copy-input').value);
+    //         e.preventDefault();
+    //     }));
+    // });
+    console.log(e.target);
+    e.preventDefault();
 };
 
 addEventListener('DOMContentLoaded', ((e) => {
@@ -141,6 +171,7 @@ addEventListener('DOMContentLoaded', ((e) => {
     getImages();
 
     const tabs = document.querySelectorAll('.spectrum-Tabs-item');
+    console.log(tabs);
     tabs.forEach((tab) => {
         tab.addEventListener('click', ((e) => {
             toggleSelected(e);
@@ -148,17 +179,28 @@ addEventListener('DOMContentLoaded', ((e) => {
     });
 }));
 
+Object.entries(document.styleSheets).forEach((key, val) => console.log(key[1].rules))
 
 
 const collectImages = () => {
-    return [...document.querySelectorAll('img')].map((img) => {
+    let images = []
+    images = [...document.querySelectorAll('img')].map((img) => {
         const url = new URL(img.src);
         const { pathname } = url;
-        return { src: img.src, width: img.width, height: img.height, alt: img.alt || 'no alt', pathname: pathname, ext: pathname.split('.')[1] };
-    })
-}
+        return { src: img.src, width: img.width, height: img.height, alt: img.alt || 'no alt', pathname: pathname, ext: pathname.split('.')[1] || 'no ext.' };
+    });
 
-const readVariables = (tabId) => {
+    let imgs = [];
+    imgs = [...document.querySelectorAll('*[style]')].reduce((results, style) => {
+        if (style.style[0] === 'background-image') {
+            const elems = style.style.backgroundImage.match(/"((?:\\.|[^"\\])*)"/);
+            const { origin } = window.location;
+            const url = new URL(`${origin}${elems[1]}`);
+            results.push({ src: url.href, width: 0, height: 0, alt: 'no alt', pathname: elems[1], ext: elems[1].split('.')[1] || 'no ext.' });
+        }
+        return results;
+    }, []);
+
     const isSameDomain = (styleSheet) => {
         if (!styleSheet.href) {
             return true;
@@ -175,11 +217,49 @@ const readVariables = (tabId) => {
                             propName.trim(),
                             rule.style.getPropertyValue(propName).trim()
                         ]
-                    }).filter(([propName]) => propName.indexOf("--") === 0);
+                    }).filter(([propName]) => propName.indexOf('background-image') === 0);
                     return [...propValArr, ...props];
                 }, [])
             ),
         []
     );
+
+    const bgImgs = values.reduce((results, value) => {
+        if(value[1].startsWith('url')) {
+            const elems = value[1].match(/"((?:\\.|[^"\\])*)"/);
+            const { origin } = window.location;
+            const url = new URL(`${origin}/${elems[1]}`);
+            results.push({ src: url.href, width: 0, height: 0, alt: 'no alt', pathname: elems[1], ext: elems[1].split('.')[1] || 'no ext.' });
+        } 
+        return results;
+    });
+   
+    return images.concat(imgs).concat(bgImgs.slice(2));
+}
+
+const readVariables = (search) => {
+    const isSameDomain = (styleSheet) => {
+        if (!styleSheet.href) {
+            return true;
+        }
+        return styleSheet.href.indexOf(window.location.origin) === 0;
+    };
+    const isStyleRule = (rule) => rule.type === 1;
+    const values = [...document.styleSheets].filter(isSameDomain).reduce(
+        (finalArr, sheet) =>
+            finalArr.concat(
+                [...sheet.cssRules].filter(isStyleRule).reduce((propValArr, rule) => {
+                    const props = [...rule.style].map((propName) => {
+                        return [
+                            propName.trim(),
+                            rule.style.getPropertyValue(propName).trim()
+                        ]
+                    }).filter(([propName]) => propName.indexOf(search) === 0);
+                    return [...propValArr, ...props];
+                }, [])
+            ),
+        []
+    );
+    console.log(values);
     return values;
 }
