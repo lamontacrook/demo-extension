@@ -9,7 +9,6 @@ const getVariables = () => {
                 args: ['--']
             }).then((injectionResults) => {
                 for (const { frameId, result } of injectionResults) {
-                    console.log(`Frame ${frameId}`);
                     result && result.forEach(element => {
                         const div = document.createElement('div');
                         div.classList.add('spectrum-Form-item');
@@ -39,12 +38,35 @@ const getVariables = () => {
     });
 };
 
+const getFonts = () => {
+    // const images = document.querySelector('#images');
+    if (!chrome.tabs) return;
+    chrome.tabs.query({ active: true, currentWindow: true }).then((tab) => {
+        if (tab) {
+            chrome.scripting.executeScript({
+                target: { tabId: tab[0].id, allFrames: true },
+                func: readFonts
+            }).then((injectionResults) => {
+                for (const { frameId, result } of injectionResults) {
+                    result.forEach((r) => {
+                        if(r.length > 0) {
+                            const textArea = document.querySelector('#font-textarea');
+                            r.forEach((elem) => {
+                                textArea.innerHTML += `${elem}\n\n`;
+                            });
+                        }
+                    })
+                }
+            });
+        }
+    });
+};
+
 const getImages = () => {
     const images = document.querySelector('#images');
     if (!chrome.tabs) return;
     chrome.tabs.query({ active: true, currentWindow: true }).then((tab) => {
         if (tab) {
-            console.log(readVariables);
             chrome.scripting.executeScript({
                 target: { tabId: tab[0].id, allFrames: true },
                 func: collectImages
@@ -148,30 +170,17 @@ const toggleSelected = (e) => {
         if (!item.classList.contains('hidden')) item.classList.toggle('hidden');
     });
 
-    console.log(anchor);
     const ti = anchor.href.split('#')[1];
     document.querySelector(`#${ti}`).classList.toggle('hidden');
-};
-
-const copyPath = (e) => {
-    // document.querySelectorAll('.copy-landing').forEach((landing) => {
-    //     landing.addEventListener('click', ((e) => {
-    //         alert(document.querySelector('.copy-input'));
-    //         console.log(document.querySelector('.copy-input'));
-    //         navigator.clipboard.writeText(document.querySelector('.copy-input').value);
-    //         e.preventDefault();
-    //     }));
-    // });
-    console.log(e.target);
-    e.preventDefault();
 };
 
 addEventListener('DOMContentLoaded', ((e) => {
     getVariables();
     getImages();
+    getFonts();
 
     const tabs = document.querySelectorAll('.spectrum-Tabs-item');
-    console.log(tabs);
+
     tabs.forEach((tab) => {
         tab.addEventListener('click', ((e) => {
             toggleSelected(e);
@@ -179,7 +188,7 @@ addEventListener('DOMContentLoaded', ((e) => {
     });
 }));
 
-Object.entries(document.styleSheets).forEach((key, val) => console.log(key[1].rules))
+// Object.entries(document.styleSheets).forEach((key, val) => console.log(key[1].rules))
 
 
 const collectImages = () => {
@@ -225,15 +234,15 @@ const collectImages = () => {
     );
 
     const bgImgs = values.reduce((results, value) => {
-        if(value[1].startsWith('url')) {
+        if (value[1].startsWith('url')) {
             const elems = value[1].match(/"((?:\\.|[^"\\])*)"/);
             const { origin } = window.location;
             const url = new URL(`${origin}/${elems[1]}`);
             results.push({ src: url.href, width: 0, height: 0, alt: 'no alt', pathname: elems[1], ext: elems[1].split('.')[1] || 'no ext.' });
-        } 
+        }
         return results;
     });
-   
+
     return images.concat(imgs).concat(bgImgs.slice(2));
 }
 
@@ -262,4 +271,16 @@ const readVariables = (search) => {
     );
     console.log(values);
     return values;
+}
+
+const readFonts = () => {
+    return [...document.styleSheets].map((item) => {
+        return [...item.cssRules].reduce((results, font) => {
+            if (font.cssText.startsWith('@font-face')) {
+                results.push(font.cssText);
+            }
+            return results;
+            
+        }, []);
+    });
 }
