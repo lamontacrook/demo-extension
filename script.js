@@ -1,3 +1,35 @@
+const highlightElement = (targetRule, blue) => {
+    const isSameDomain = (styleSheet) => {
+        if (!styleSheet.href) {
+            return true;
+        }
+        return styleSheet.href.indexOf(window.location.origin) === 0;
+    };
+    const isStyleRule = (rule) => rule.type === 1;
+    const values = [...document.styleSheets].filter(isSameDomain).reduce(
+        (finalArr, sheet) =>
+            finalArr.concat(
+                [...sheet.cssRules].filter(isStyleRule).reduce((propValArr, rule) => {
+                    if(rule.cssText.indexOf(`var(${targetRule})`) >= 0) {
+                        console.log(rule);
+                        //console.log(rule.cssText);
+                        rule.selectorText.split(',').forEach((selector) => {
+                            console.log(selector);
+                            document.querySelectorAll(selector).forEach((elem) => {
+                                if(blue) elem.classList.add('blue-box');
+                                else {
+                                    console.log(elem);
+                                    elem.classList.remove('blue-box');
+                                }
+                            })
+                        });
+                    }
+                }, [])
+            ),
+        []
+    );
+};
+
 const getVariables = () => {
     const variableList = document.querySelector('#global-variables > form');
     if (!chrome.tabs) return;
@@ -13,13 +45,26 @@ const getVariables = () => {
                         const div = document.createElement('div');
                         div.classList.add('spectrum-Form-item');
                         div.innerHTML = `
-                        <label class="spectrum-FieldLabel spectrum-FieldLabel--sizeM spectrum-Form-itemLabel spectrum-FieldLabel--left" for="fieldLabelExample-${element[0]}">${element[0]}</label>
+                        <label class="spectrum-FieldLabel spectrum-FieldLabel--sizeM spectrum-Form-itemLabel spectrum-FieldLabel--left" for="${element[0]}">${element[0]}</label>
                         <div class="spectrum-Form-itemField">
                             <div class="spectrum-Textfield">
-                                <input class="spectrum-Textfield-input" aria-invalid="false" type="text" placeholder="${element[1]}" id="fieldLabelExample-${element[0]}">
+                                <input class="spectrum-Textfield-input" aria-invalid="false" type="text" placeholder="${element[1]}" id="${element[0]}">
                             </div>
                         </div>`;
-
+                        div.querySelector('input').addEventListener('focus', ((e) => {
+                            chrome.scripting.executeScript({
+                                target: { tabId: tab[0].id, allFrames: true },
+                                func: highlightElement,
+                                args: [e.target.id, true]
+                            });
+                        }));
+                        div.querySelector('input').addEventListener('focusout', ((e) => {
+                            chrome.scripting.executeScript({
+                                target: { tabId: tab[0].id, allFrames: true },
+                                func: highlightElement,
+                                args: [e.target.id, false]
+                            });
+                        }));
                         div.querySelector('input').addEventListener('change', ((e) => {
                             chrome.scripting.insertCSS({
                                 target: {
@@ -269,7 +314,6 @@ const readVariables = (search) => {
             ),
         []
     );
-    console.log(values);
     return values;
 }
 
